@@ -1,0 +1,190 @@
+---
+title: "UNICEF INDICATOR ANALYSIS"
+subtitle: "Children Suffering Exactly 3 Deprivations across the World"
+format: html
+editor: visual
+author: Alankrit Dubey
+date: 04/19/2024
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Data preparation
+
+We are reading unicef_indicator_1.csv,unicef_indicator_2.csv & unicef_metadata.csv into R environment for analysis. We have generated a unique key based on country code and year to join unicef_indicator_1.csv with unicef_metadata.csv. This helps us to get some trends by combining both files
+
+```{r, warning=FALSE, message=FALSE, include=FALSE, echo= FALSE}
+
+
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(maps)
+library(sqldf)
+library(DT)
+
+df1 <- read_csv("unicef_indicator_1.csv")
+df2 <- read_csv("unicef_indicator_2.csv")
+df3 <- read_csv("unicef_metadata.csv")
+
+df5 <- df1 %>% filter(sex == "Total" & obs_value > 0 )
+df5 <- df5 %>%
+  mutate(unique_key = paste(alpha_2_code, time_period))
+df6 <- df3 %>%
+    mutate(unique_key = paste(alpha_2_code, year))
+df7 <- inner_join(df5, df6, by = "unique_key")
+
+
+world_map <- map_data("world")
+
+merged_data <- merge(world_map, df1, by.x = "region", by.y = "country", all.x = TRUE)
+
+
+```
+
+In below world map we have highlighted countries with high Percentage Children suffering exactly three deprivation. These countries require more efforts from WHO team. Most of the countries lies in Africa (which is a low per captia country and do not have stable goverments)
+
+```{r, warning=FALSE, message=FALSE, echo= FALSE}
+
+# Assuming 'obs_category' has 4 unique values
+# Provide at least 4 colors
+ggplot() +
+  geom_polygon(data = merged_data, aes(x = long, y = lat, group = group, fill = obs_value), color = "lightgrey") +
+  scale_fill_gradient(low = "lightgreen", high = "red", name = "Observation Value") +
+  labs(title = "World Map Highlighting High Observation Values", x = "", y = "") +
+  theme_minimal() +
+  theme(legend.position = "bottom", panel.grid = element_blank(), 
+        axis.text = element_blank(), axis.title = element_blank(), 
+        axis.ticks = element_blank())
+
+
+
+
+```
+
+## Correlation Between Per captia income and Life expectancy
+
+There is a high positive correlation of .61 which means that countries with high per captia income tends to have greater life expectancy.
+
+```{r, warning=FALSE, message=FALSE, echo= FALSE}
+
+cor_1 <- cor(df7$`Life expectancy at birth, total (years)`,df7$`GDP per capita (constant 2015 US$)`)
+
+
+ggplot(df7, aes(x = `Life expectancy at birth, total (years)`, y = `GDP per capita (constant 2015 US$)`)) +
+  geom_point() +  # Add points for the scatter plot
+  geom_smooth(method = "lm", se = FALSE, color = "blue") + 
+  annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 2,
+           label = paste("Correlation =", round(cor_1, 2)),
+           size = 5, color = "red") + 
+  labs(title = "Scatter Plot of Per_captia_income vs Life_expectancy",
+       x = "GDP", y = "Per_captia") +
+  theme_minimal()
+```
+
+## Trend between Military Expenditure over Years
+
+Countries with high military spending often have limited resources left for social sectors, potentially exacerbating child deprivations in health, education, and overall well-being. This trend highlights the need for a balanced approach in resource allocation, ensuring that the pursuit of security does not undermine the critical investments required to address and reduce child deprivation, Over the time we observed that military spending has reduced as % of GDP which means the world is more stable now and GDP of countries is increasing. After 2020 we see military spending as % of GDP increasing as the GDP of countries took a hit during COVID-19 and some war-like situations were observed in some countries.
+
+```{r, warning=FALSE, message=FALSE, echo= FALSE}
+
+
+df10 <- df3 %>%
+  filter(!is.na(df3$`Military expenditure (% of GDP)`))
+
+df10 <- df10 %>% 
+  filter(!is.na(df10$`GDP per capita (constant 2015 US$)`))
+
+
+df11 <- sqldf("Select year, avg(`Military expenditure (% of GDP)`) as miltary_exp from df10 group by year order by year asc")
+
+
+
+
+ggplot(df11, aes(x = year, y = miltary_exp)) +
+  geom_line(color = "black") +            # Plot the lines
+  geom_point(color = "red", size = 3) +   # Add points
+  labs(
+    title = "Military Expenditure of GDP",
+    x = "Year", 
+    y = "% militarty_spend_gdp"
+  ) + 
+  theme_minimal()                         
+
+```
+
+## Top Deprived Countries
+
+Out of 10 deprived countries 9 are in Africa and 1 in asia. This means indicators in Africa are quite poor and more efforts are needed in Africa.
+
+```{r, warning=FALSE, message=FALSE, echo= FALSE}
+
+
+
+df11 <- df1 %>% filter(sex == "Total" & obs_value > 5.0 ) %>% select(country,indicator,obs_value) %>% arrange(desc(obs_value))
+
+datatable(df11)
+
+
+
+
+```
+
+## Top Deprived Countries Bar chart
+
+For top deprived countries it is observed that Male are more prone to deficiencies than female. Created a bar chart depicting the same.
+
+```{r, warning=FALSE, message=FALSE,  echo= FALSE}
+
+
+df13 <- c("Male","Female")
+
+df12 <- df1 %>% filter(sex %in%  df13)
+
+df15 <- df12 %>% filter (obs_value > 5.0)
+
+df14 <- sqldf("Select sex , avg(obs_value) as obs_value From df15 group by 1")
+
+
+
+
+ggplot(data = df14, aes(x = sex, y = obs_value, fill = sex)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Bar Chart of Observed Values by Sex",
+       x = "Sex",
+       y = "Observed Value") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Pastel1")  # Color scheme
+
+
+
+
+```
+
+\
+In Conclusion, The analysis of UNICEF indicators has illuminated critical insights into the disparities in child deprivation across different regions of the world, particularly highlighting the acute challenges faced by African nations. By correlating these indicators with economic metrics such as GDP per capita and military expenditure, it becomes evident that economic prosperity is closely linked with higher life expectancy and potentially lower rates of deprivation among children. However, the persistence of high deprivation levels in several countries, especially those with unstable governments and low per capita income, underscores the urgent need for targeted interventions. These interventions should be strategically focused on the most affected regions, with an emphasis on comprehensive support to improve the overall wellbeing and future prospects of the children in these areas. This analysis not only sheds light on the current state of child deprivation but also calls for a sustained global effort to alleviate these disparities, thereby ensuring a better tomorrow for all children.
+
+------------------------------------------------------------------------
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
