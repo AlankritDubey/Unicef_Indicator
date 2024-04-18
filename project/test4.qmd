@@ -64,9 +64,9 @@ ggplot() +
 
 ```
 
-## Correlation Between Per captia income and Life expectancy
+## Correlation Between Per capita income and Life expectancy
 
-There is a high positive correlation of .61 which means that countries with high per captia income tends to have greater life expectancy.
+There is a high positive correlation of 0.61 which means that countries with high per capita income tends to have greater life expectancy.
 
 ```{r, warning=FALSE, message=FALSE, echo= FALSE}
 
@@ -79,8 +79,8 @@ ggplot(df7, aes(x = `Life expectancy at birth, total (years)`, y = `GDP per capi
   annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 2,
            label = paste("Correlation =", round(cor_1, 2)),
            size = 5, color = "red") + 
-  labs(title = "Scatter Plot of Per_captia_income vs Life_expectancy",
-       x = "GDP", y = "Per_captia") +
+  labs(title = "Scatter Plot of Per_capita_income vs Life_expectancy",
+       x = "GDP", y = "Per_capita") +
   theme_minimal()
 ```
 
